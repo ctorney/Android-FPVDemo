@@ -148,9 +148,9 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
         mVideoSurface = (TextureView)findViewById(R.id.video_previewer_surface);
 
         recordingTime = (TextView) findViewById(R.id.timer);
-        mCaptureBtn = (Button) findViewById(R.id.btn_capture);
+        mCaptureBtn = (Button) findViewById(R.id.btn_record);
         mRecordBtn = (ToggleButton) findViewById(R.id.btn_record);
-        mShootPhotoModeBtn = (Button) findViewById(R.id.btn_shoot_photo_mode);
+        mShootPhotoModeBtn = (Button) findViewById(R.id.btn_record);
         mRecordVideoModeBtn = (Button) findViewById(R.id.btn_record_video_mode);
 
         if (null != mVideoSurface) {
@@ -244,12 +244,8 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
     public void onClick(View v) {
 
         switch (v.getId()) {
-            case R.id.btn_capture:{
+            case R.id.btn_record:{
                 captureAction();
-                break;
-            }
-            case R.id.btn_shoot_photo_mode:{
-                switchCameraMode(DJICameraSettingsDef.CameraMode.ShootPhoto);
                 break;
             }
             case R.id.btn_record_video_mode:{
