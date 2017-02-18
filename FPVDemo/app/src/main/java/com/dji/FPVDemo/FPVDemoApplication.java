@@ -7,7 +7,9 @@ import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
 
+import dji.common.battery.DJIBatteryState;
 import dji.common.handheld.DJIHandheldButtonStatus;
+import dji.sdk.battery.DJIBattery;
 import dji.sdk.camera.DJICamera;
 import dji.sdk.products.DJIAircraft;
 import dji.sdk.products.DJIHandHeld;
@@ -62,6 +64,11 @@ public class FPVDemoApplication extends Application{
 
         return camera;
     }
+    private static int mBatteryPercent=0;
+
+    public static int getBatteryPercent() {
+        return mBatteryPercent;
+    }
 
     @Override
     public void onCreate() {
@@ -115,6 +122,19 @@ public class FPVDemoApplication extends Application{
             mProduct = newProduct;
             if(mProduct != null) {
                 mProduct.setDJIBaseProductListener(mDJIBaseProductListener);
+                try {
+                    mProduct.getBattery().setBatteryStateUpdateCallback(
+                            new DJIBattery.DJIBatteryStateUpdateCallback() {
+                                @Override
+                                public void onResult(DJIBatteryState djiBatteryState) {
+                                    mBatteryPercent = djiBatteryState.getBatteryEnergyRemainingPercent();
+                                }
+                            }
+                    );
+                } catch (Exception exception) {
+
+                }
+
             }
 
             notifyStatusChange();
