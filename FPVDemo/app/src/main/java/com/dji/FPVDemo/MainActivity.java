@@ -80,12 +80,18 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
 
             @Override
             public void onResult(byte[] videoBuffer, int size) {
+            try{
                 if(mCodecManager != null){
                     // Send the raw H264 video data to codec manager for decoding
                     mCodecManager.sendDataToDecoder(videoBuffer, size);
                 }else {
                     Log.e(TAG, "mCodecManager is null");
                 }
+            } catch (Exception e) {
+                //showToast(e.getMessage());
+                Log.e("TAG", e.getMessage());
+
+            }
             }
         };
 
@@ -562,7 +568,7 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
 
     }
     private void writeToLog(){
-        showToast("write to the log");
+
         try {
 
             DateFormat df = new SimpleDateFormat("yyyyMMdd");
@@ -618,18 +624,18 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
             bw.write(outputText);
             bw.close();
 
-            try{
-                Process su = Runtime.getRuntime().exec("rm /mnt/shared/osmoLogs/" + todayDate + ".txt");
-                su.waitFor();
-                su = Runtime.getRuntime().exec("cp " + filename + " /mnt/shared/osmoLogs/" + todayDate + ".txt");
-                su.waitFor();
+//            try{
+             //   Process su = Runtime.getRuntime().exec("rm /mnt/shared/osmoLogs/" + todayDate + ".txt");
+              //  su.waitFor();
+              //  su = Runtime.getRuntime().exec("cp " + filename + " /mnt/shared/osmoLogs/" + todayDate + ".txt");
+             //   su.waitFor();
 
-            }catch(IOException e){
-                throw new Exception(e);
-            }
-            catch(InterruptedException e){
-                throw new Exception(e);
-            }
+  //          }catch(IOException e){
+    //            throw new Exception(e);
+      //      }
+        //    catch(InterruptedException e){
+          //      throw new Exception(e);
+            //}
 
 
 
