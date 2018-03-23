@@ -12,6 +12,7 @@ import android.view.TextureView.SurfaceTextureListener;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
@@ -30,8 +31,11 @@ import java.util.TimerTask;
 import dji.common.camera.CameraSystemState;
 import dji.common.camera.DJICameraSettingsDef;
 import dji.common.error.DJIError;
+import dji.common.gimbal.DJIGimbalControllerMode;
+import dji.common.gimbal.DJIGimbalRotateAngleMode;
 import dji.common.gimbal.DJIGimbalRotateDirection;
 import dji.common.gimbal.DJIGimbalSpeedRotation;
+import dji.common.gimbal.DJIGimbalAngleRotation;
 import dji.common.gimbal.DJIGimbalState;
 import dji.common.gimbal.DJIGimbalWorkMode;
 import dji.common.product.Model;
@@ -41,6 +45,8 @@ import dji.sdk.camera.DJICamera.CameraReceivedVideoDataCallback;
 import dji.sdk.codec.DJICodecManager;
 import dji.sdk.base.DJIBaseProduct;
 import dji.sdk.gimbal.DJIGimbal;
+
+import static java.lang.Math.min;
 
 
 public class MainActivity extends Activity implements SurfaceTextureListener,OnClickListener{
@@ -57,15 +63,19 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
     private Button mUpBtn,mRightBtn, mLeftBtn, mDownBtn, mResetBtn;
     private ToggleButton mRecordBtn;
     private TextView recordingTime;
+    private SeekBar speedBar;
 
     private boolean recording = false;
 
     private DJIGimbalSpeedRotation mPitchSpeedRotation;
     private DJIGimbalSpeedRotation mYawSpeedRotation;
 
-
     private Timer mTimer;
     private GimbalRotateTimerTask mGimbalRotationTimerTask;
+
+    private Timer mFixTimer;
+    private GimbalFixRotation mGimbalFixRotation;
+    private float fixYaw=0.0f;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -191,7 +201,7 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
         mDownBtn = (Button) findViewById(R.id.btnDown);
         mResetBtn = (Button) findViewById(R.id.btnReset);
 
-
+        speedBar=(SeekBar)findViewById(R.id.seekBar);
         if (null != mVideoSurface) {
             mVideoSurface.setSurfaceTextureListener(this);
         }
@@ -230,6 +240,7 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
             if (null != mVideoSurface) {
                 mVideoSurface.setSurfaceTextureListener(this);
             }
+            showToast(getString(R.string.disconnected));
             if (!product.getModel().equals(Model.UnknownAircraft)) {
                 DJICamera camera = product.getCamera();
                 if (camera != null){
@@ -536,6 +547,11 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
                     if (error == null) {
                         showToast("Recording. Battery at " + String.valueOf(FPVDemoApplication.getBatteryPercent()) + "%");
 
+                        fixYaw = FPVDemoApplication.getProductInstance().getGimbal().getAttitudeInDegrees().yaw;
+                        mFixTimer = new Timer();
+                        mGimbalFixRotation = new GimbalFixRotation(fixYaw);
+                        //mGimbalRotationTimerTask.run();
+                        mFixTimer.schedule(mGimbalFixRotation, 0, 100);
                         recording=true;
                         writeToLog();
                     }else {
@@ -558,6 +574,11 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
                 {
                     if(error == null) {
                         recording = false;
+                        mGimbalFixRotation.cancel();
+                        mFixTimer.cancel();
+                        mFixTimer.purge();
+                        mGimbalFixRotation = null;
+                        mFixTimer = null;
                         showToast("Stopped. Battery at " + String.valueOf(FPVDemoApplication.getBatteryPercent()) + "%");
                     }else {
                         showToast(error.getDescription());
@@ -650,6 +671,66 @@ public class MainActivity extends Activity implements SurfaceTextureListener,OnC
 
 
 
+    class GimbalFixRotation extends TimerTask {
+        float mYaw;
+
+        GimbalFixRotation(float yaw) {
+            super();
+            this.mYaw = yaw;
+        }
+        @Override
+        public void run() {
+            DJIGimbal gimbal = FPVDemoApplication.getProductInstance().getGimbal();
+          //  gimbal.setGimbalControllerMode(DJIGimbalControllerMode.Free,null);
+            if (gimbal!=null) {
+                DJIGimbalRotateAngleMode djiGimbalAngleMode = DJIGimbalRotateAngleMode.RelativeAngle;
+                DJIGimbalAngleRotation djiGimbalAngleRotation_pitch = new DJIGimbalAngleRotation(false, 0.0f, DJIGimbalRotateDirection.Clockwise);
+                DJIGimbalAngleRotation djiGimbalAngleRotation_roll = new DJIGimbalAngleRotation(false, 0.0f, DJIGimbalRotateDirection.Clockwise);
+
+                float newYaw = FPVDemoApplication.getProductInstance().getGimbal().getAttitudeInDegrees().yaw;
+                DJIGimbalAngleRotation djiGimbalAngleRotation_yaw = new DJIGimbalAngleRotation(true, this.mYaw-newYaw, DJIGimbalRotateDirection.Clockwise);
+                //showToast("yaw start: " + String.valueOf(this.mYaw) +" yaw now: " + String.valueOf(newYaw) );
+                int seekBarValue= speedBar.getProgress(); // get progress value from the Seek bar
+                float speed = ((float)seekBarValue-50.0f)/200.0f;
+                //float yawError = this.mYaw-newYaw;
+                if (speed>0.00){
+                    //float speed = min(yawError,5);
+                mYawSpeedRotation = new DJIGimbalSpeedRotation(speed,
+                        DJIGimbalRotateDirection.Clockwise);
+                gimbal.rotateGimbalBySpeed(null, null, mYawSpeedRotation,
+                        new DJICommonCallbacks.DJICompletionCallback() {
+
+                            @Override
+                            public void onResult(DJIError error) {
+
+                            }
+                        });}
+                if (speed<-0.00){
+
+                    mYawSpeedRotation = new DJIGimbalSpeedRotation(-1.0f*speed,
+                            DJIGimbalRotateDirection.CounterClockwise);
+                    gimbal.rotateGimbalBySpeed(null, null, mYawSpeedRotation,
+                            new DJICommonCallbacks.DJICompletionCallback() {
+
+                                @Override
+                                public void onResult(DJIError error) {
+
+                                }
+                            });}
+                //gimbal.rotateGimbalByAngle(djiGimbalAngleMode, djiGimbalAngleRotation_pitch, djiGimbalAngleRotation_roll, djiGimbalAngleRotation_yaw, new DJICommonCallbacks.DJICompletionCallback() {
+                 //   @Override
+                 //   public void onResult(DJIError error) {
+                  //      if (error == null) {
+                            // process success
+                   ///     } else {
+                      //      showToast(error.getDescription());
+                        //}
+                    //}
+                //});
+            }
+        }
+
+    }
 
 
 
